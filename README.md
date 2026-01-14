@@ -6,7 +6,7 @@
 **Technical showcase from the game "Fractura" (Released on Steam).**
 This repository contains the core C++ backend and system configurations for a physics-based destruction sandbox built on Unreal Engine 5.
 
-🎥 **[Watch Mechanics Showreel](СЮДА_ВСТАВЬ_ССЫЛКУ_НА_ЮТУБ)** *(will be later)*
+🎥 **[Watch Mechanics Showreel](https://youtu.be/76JMEucfqw4)** 
 🎮 **[View on Steam](СЮДА_ВСТАВЬ_ССЫЛКУ_НА_СТИМ)** *(will be later)*
 
 ---
