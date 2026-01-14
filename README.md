@@ -29,6 +29,9 @@ Performance-critical logic is implemented in C++, exposed to Blueprints for game
 *   **Time-Sliced Processing:** Heavy loops (like loading a massive save file) are distributed across multiple frames.
 *   **PSO Caching:** Configured for Shipping builds to eliminate shader stutter.
 
+
+![Timeline 1_01_00_01_41](https://github.com/user-attachments/assets/f1055779-b3df-4c19-a5ba-db830abdecd3)
+
 ---
 
 ## 📂 Code Structure
