@@ -5,6 +5,10 @@
 #include "SandboxItemData.h"
 #include "SandboxIdentityComponent.generated.h"
 
+/**
+ * Component identifying an actor as part of the Sandbox Save System.
+ * Also handles health/destruction logic.
+ */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent), Blueprintable)
 class SANDBOX_API USandboxIdentityComponent : public UActorComponent
 {
@@ -13,14 +17,14 @@ class SANDBOX_API USandboxIdentityComponent : public UActorComponent
 public:
     USandboxIdentityComponent();
 
-    // Ссылка на DataAsset. Если она пуста, предмет не сохранится.
+    /** Reference to the source DataAsset. Required for saving. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Identity", meta = (ExposeOnSpawn = "true"))
     TObjectPtr<USandboxItemData> SourceItemData;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Gameplay")
     float CurrentHealth = 100.0f;
 
-    // Вызывать, когда игрок бьет по предмету
+    /** Called when player deals damage to this object. */
     UFUNCTION(BlueprintCallable, Category = "Gameplay")
     void TakeDamageFromPlayer(float Amount);
 };

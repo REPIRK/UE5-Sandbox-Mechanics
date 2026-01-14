@@ -8,8 +8,8 @@
 #include "SandboxUtils.generated.h"
 
 /**
- * Helper library for Sandbox mechanics, Math, System Settings and Time control.
- * Optimized for UE 5.4+
+ * Global Utility Library.
+ * Bridges C++ performance with Blueprint usability.
  */
 UCLASS()
 class SANDBOX_API USandboxUtils : public UBlueprintFunctionLibrary
@@ -21,6 +21,7 @@ public:
     // SECTION: BUILDING & MATH
     // =========================================================================
 
+    /** Performs a raycast and calculates transform with grid snapping. */
     UFUNCTION(BlueprintCallable, Category = "Sandbox|Math", meta = (WorldContext = "WorldContextObject"))
     static bool CalculatePlacementTransform(
         const UObject* WorldContextObject,
@@ -33,6 +34,7 @@ public:
         FTransform& OutTransform
     );
 
+    /** Validates placement using collision overlap check. */
     UFUNCTION(BlueprintCallable, Category = "Sandbox|Collision", meta = (WorldContext = "WorldContextObject"))
     static bool IsPlacementValid(
         const UObject* WorldContextObject,
@@ -69,9 +71,7 @@ public:
     // =========================================================================
 
     /**
-     * Sets global time dilation AND adjusts audio pitch.
-     * Prevents deep bass sound in slow motion for music.
-     * NOW ACCEPTS CURRENT VOLUME TO PREVENT RESETTING IT.
+     * Sets global time dilation AND adjusts audio pitch to match speed.
      */
     UFUNCTION(BlueprintCallable, Category = "Sandbox|Time", meta = (WorldContext = "WorldContextObject"))
     static void SetGameSpeed(
@@ -79,25 +79,24 @@ public:
         float Speed,
         USoundMix* SoundMix,
         USoundClass* MusicClass,
-        float CurrentMusicVolume,   // <--- NEW ARGUMENT
+        float CurrentMusicVolume,
         USoundClass* SFXClass,
-        float CurrentSFXVolume      // <--- NEW ARGUMENT
+        float CurrentSFXVolume
     );
 
     UFUNCTION(BlueprintCallable, Category = "Sandbox|Audio", meta = (WorldContext = "WorldContextObject"))
     static void SetSoundClassVolume(const UObject* WorldContextObject, USoundClass* SoundClass, USoundMix* SoundMix, float Volume);
+
     UFUNCTION(BlueprintCallable, Category = "Sandbox|Audio")
     static void GetSavedAudioSettings(float& OutMusicVolume, float& OutSFXVolume);
-    /**
-     * Changes the current game language.
-     * @param CultureCode "en", "ru", "es", "zh", etc.
-     */
+
+    // =========================================================================
+    // SECTION: SYSTEM (Localization)
+    // =========================================================================
+
     UFUNCTION(BlueprintCallable, Category = "Sandbox|System")
     static void SetLanguage(FString CultureCode);
 
-    /**
-     * Gets current language code.
-     */
     UFUNCTION(BlueprintPure, Category = "Sandbox|System")
     static FString GetCurrentLanguage();
 };

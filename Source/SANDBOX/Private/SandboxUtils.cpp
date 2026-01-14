@@ -9,7 +9,7 @@
 #include "Internationalization/Culture.h"
 
 // =========================================================================
-// SECTION: BUILDING & MATH
+// BUILDING & MATH
 // =========================================================================
 
 bool USandboxUtils::CalculatePlacementTransform(
@@ -32,13 +32,7 @@ bool USandboxUtils::CalculatePlacementTransform(
     FCollisionQueryParams QueryParams;
     QueryParams.bTraceComplex = false;
 
-    bool bHit = World->LineTraceSingleByChannel(
-        HitResult,
-        TraceStart,
-        TraceEnd,
-        ECC_Visibility,
-        QueryParams
-    );
+    bool bHit = World->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, QueryParams);
 
     FQuat YawRotation(FVector::UpVector, FMath::DegreesToRadians(AdditionalYaw));
 
@@ -66,6 +60,7 @@ bool USandboxUtils::CalculatePlacementTransform(
         return true;
     }
 
+    // Sky Logic
     FVector FloatingLocation = TraceStart + (CameraForward * (TraceDistance * 0.5f));
     if (GridSize > 0.0f)
     {
@@ -97,7 +92,7 @@ bool USandboxUtils::IsPlacementValid(
     MeshComponent->GetLocalBounds(Min, Max);
     FVector LocalCenter = (Min + Max) * 0.5f;
     FVector BoxExtent = (Max - Min) * 0.5f;
-    BoxExtent *= 0.95f;
+    BoxExtent *= 0.95f; // Shrink to avoid floor contact
 
     FVector WorldCenter = ItemLocation + ItemRotation.RotateVector(LocalCenter);
 
@@ -120,7 +115,7 @@ bool USandboxUtils::IsPlacementValid(
 }
 
 // =========================================================================
-// SECTION: SETTINGS & OPTIMIZATION
+// SETTINGS
 // =========================================================================
 
 void USandboxUtils::ApplyGraphicsQuality(int32 QualityLevel)
@@ -130,11 +125,13 @@ void USandboxUtils::ApplyGraphicsQuality(int32 QualityLevel)
 
     Settings->SetOverallScalabilityLevel(QualityLevel);
 
+    // Disable Path Tracing to avoid crashes
     if (IConsoleVariable* CVarPathTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing")))
     {
         CVarPathTracing->Set(0, ECVF_SetByCode);
     }
 
+    // Hardware Ray Tracing logic
     if (IConsoleVariable* CVarLumenHWRT = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.HardwareRayTracing")))
     {
         int32 HWRTValue = (QualityLevel >= 2) ? 1 : 0;
@@ -170,10 +167,10 @@ void USandboxUtils::SetUpscalingMode(int32 Mode)
     float TargetPercentage = 100.0f;
     switch (Mode)
     {
-    case 0: TargetPercentage = 100.0f; break;
-    case 1: TargetPercentage = 66.6f;  break;
-    case 2: TargetPercentage = 58.0f;  break;
-    case 3: TargetPercentage = 50.0f;  break;
+    case 0: TargetPercentage = 100.0f; break; // Native
+    case 1: TargetPercentage = 66.6f;  break; // Quality
+    case 2: TargetPercentage = 58.0f;  break; // Balanced
+    case 3: TargetPercentage = 50.0f;  break; // Performance
     default: TargetPercentage = 100.0f; break;
     }
     CVarScreenPerc->Set(TargetPercentage, ECVF_SetByCode);
@@ -195,7 +192,6 @@ void USandboxUtils::SetVSyncEnabled(bool bEnabled)
 {
     UGameUserSettings* Settings = GEngine->GetGameUserSettings();
     if (!Settings) return;
-
     Settings->SetVSyncEnabled(bEnabled);
     Settings->ApplySettings(false);
 }
@@ -204,13 +200,12 @@ void USandboxUtils::SetFrameRateLimit(float Limit)
 {
     UGameUserSettings* Settings = GEngine->GetGameUserSettings();
     if (!Settings) return;
-
     Settings->SetFrameRateLimit(Limit);
     Settings->ApplySettings(false);
 }
 
 // =========================================================================
-// SECTION: TIME & AUDIO FIX
+// TIME & AUDIO
 // =========================================================================
 
 void USandboxUtils::SetGameSpeed(
@@ -218,9 +213,9 @@ void USandboxUtils::SetGameSpeed(
     float Speed,
     USoundMix* SoundMix,
     USoundClass* MusicClass,
-    float CurrentMusicVolume, // <--- »—ѕќЋ№«”≈ћ
+    float CurrentMusicVolume,
     USoundClass* SFXClass,
-    float CurrentSFXVolume)   // <--- »—ѕќЋ№«”≈ћ
+    float CurrentSFXVolume)
 {
     float ClampedSpeed = FMath::Clamp(Speed, 0.1f, 2.0f);
     UGameplayStatics::SetGlobalTimeDilation(WorldContextObject, ClampedSpeed);
@@ -230,6 +225,7 @@ void USandboxUtils::SetGameSpeed(
     float SFXPitch = 1.0f;
     float MusicPitch = 1.0f;
 
+    // Pitch adjustment logic based on speed
     if (ClampedSpeed < 1.0f)
     {
         SFXPitch = FMath::GetMappedRangeValueClamped(FVector2D(0.1f, 1.0f), FVector2D(0.4f, 1.0f), ClampedSpeed);
@@ -244,26 +240,14 @@ void USandboxUtils::SetGameSpeed(
     if (SFXClass)
     {
         UGameplayStatics::SetSoundMixClassOverride(
-            WorldContextObject,
-            SoundMix,
-            SFXClass,
-            CurrentSFXVolume, // <--- —юда ставим реальную громкость, а не 1.0f
-            SFXPitch,
-            0.5f,
-            true
+            WorldContextObject, SoundMix, SFXClass, CurrentSFXVolume, SFXPitch, 0.5f, true
         );
     }
 
     if (MusicClass)
     {
         UGameplayStatics::SetSoundMixClassOverride(
-            WorldContextObject,
-            SoundMix,
-            MusicClass,
-            CurrentMusicVolume, // <--- —юда ставим реальную громкость
-            MusicPitch,
-            0.5f,
-            true
+            WorldContextObject, SoundMix, MusicClass, CurrentMusicVolume, MusicPitch, 0.5f, true
         );
     }
 
@@ -277,20 +261,18 @@ void USandboxUtils::SetSoundClassVolume(const UObject* WorldContextObject, USoun
     UGameplayStatics::SetSoundMixClassOverride(WorldContextObject, SoundMix, SoundClass, Volume, 1.0f, 0.0f, true);
     UGameplayStatics::PushSoundMixModifier(WorldContextObject, SoundMix);
 }
+
 void USandboxUtils::GetSavedAudioSettings(float& OutMusicVolume, float& OutSFXVolume)
 {
-    // «начени€ по умолчанию (если файла нет)
     OutMusicVolume = 1.0f;
     OutSFXVolume = 1.0f;
 
-    // »м€ слота должно совпадать с тем, что мы использовали в меню (Settings)
+    // Slot name matches the menu setting logic
     FString SlotName = TEXT("Settings");
 
     if (UGameplayStatics::DoesSaveGameExist(SlotName, 0))
     {
         USaveGame* LoadedSave = UGameplayStatics::LoadGameFromSlot(SlotName, 0);
-
-        // ѕытаемс€ привести к нашему классу
         if (USandboxSaveGame* MySave = Cast<USandboxSaveGame>(LoadedSave))
         {
             OutMusicVolume = MySave->MusicVolume;
@@ -299,12 +281,14 @@ void USandboxUtils::GetSavedAudioSettings(float& OutMusicVolume, float& OutSFXVo
     }
 }
 
-// language
+// =========================================================================
+// SYSTEM
+// =========================================================================
+
 void USandboxUtils::SetLanguage(FString CultureCode)
 {
     if (FInternationalization::Get().SetCurrentCulture(CultureCode))
     {
-        // ќчищаем кэш шрифтов и текстов, чтобы UI обновилс€ мгновенно
         FTextLocalizationManager::Get().RefreshResources();
     }
 }

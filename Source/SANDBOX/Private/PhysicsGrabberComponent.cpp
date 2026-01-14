@@ -9,10 +9,8 @@ UPhysicsGrabberComponent::UPhysicsGrabberComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     bIsHolding = false;
-    CurrentState = EGrabState::Idle; // Старт с Idle
+    CurrentState = EGrabState::Idle;
     CurrentHoldDistance = 200.0f;
-    SpringStiffness = 40.0f;
-    SpringDamping = 4.0f;
 }
 
 void UPhysicsGrabberComponent::BeginPlay()
@@ -20,12 +18,12 @@ void UPhysicsGrabberComponent::BeginPlay()
     Super::BeginPlay();
 
     AActor* Owner = GetOwner();
-    if (Owner)
+    if (ensure(Owner))
     {
         PhysicsHandle = Owner->FindComponentByClass<UPhysicsHandleComponent>();
         if (PhysicsHandle)
         {
-            // Твои настройки хэндла
+            // Configure handle for smooth physics interaction
             PhysicsHandle->LinearDamping = 200.0f;
             PhysicsHandle->LinearStiffness = 1500.0f;
             PhysicsHandle->AngularDamping = 10.0f;
@@ -39,12 +37,13 @@ void UPhysicsGrabberComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
 {
     Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
-    // 1. Сначала обновляем UI (проверяем, на что смотрим)
+    // 1. Update UI state (Raycast check)
     UpdateTraceState();
 
-    // 2. Если не держим — выходим, физику не считаем
+    // 2. Physics logic (Only if holding)
     if (!bIsHolding || !PhysicsHandle) return;
 
+    // Safety check: if the component was destroyed externally
     if (!PhysicsHandle->GetGrabbedComponent())
     {
         ReleaseObject();
@@ -55,9 +54,10 @@ void UPhysicsGrabberComponent::TickComponent(float DeltaTime, ELevelTick TickTyp
     FRotator CameraRot;
     if (!GetPlayerViewPoint(CameraLoc, CameraDir, CameraRot)) return;
 
-    // --- ТВОЯ РАБОЧАЯ МАТЕМАТИКА ---
+    // Calculate Target Position
     FVector FinalPosition = CameraLoc + (CameraDir * CurrentHoldDistance);
 
+    // Custom Spring Physics Calculation
     FVector Displacement = FinalPosition - CurrentTargetLocation;
     FVector SpringForce = Displacement * SpringStiffness;
     FVector DampingForce = CurrentTargetVelocity * SpringDamping;
@@ -75,14 +75,12 @@ void UPhysicsGrabberComponent::UpdateTraceState()
 {
     EGrabState NewState = EGrabState::Idle;
 
-    // 1. Если держим — состояние Holding
     if (bIsHolding)
     {
         NewState = EGrabState::Holding;
     }
     else
     {
-        // 2. Если не держим — пускаем луч, чтобы узнать, можно ли взять
         FVector CamLoc, CamDir;
         FRotator CamRot;
         if (GetPlayerViewPoint(CamLoc, CamDir, CamRot))
@@ -98,7 +96,7 @@ void UPhysicsGrabberComponent::UpdateTraceState()
 
             if (bHit && Hit.GetComponent())
             {
-                // Проверяем тег и физику
+                // Check tags and physics state
                 bool bHasTag = Hit.GetComponent()->ComponentHasTag(LiftableTag) || Hit.GetActor()->ActorHasTag(LiftableTag);
                 if (bHasTag && Hit.GetComponent()->IsSimulatingPhysics())
                 {
@@ -108,7 +106,7 @@ void UPhysicsGrabberComponent::UpdateTraceState()
         }
     }
 
-    // 3. Если состояние изменилось — уведомляем UI
+    // Broadcast only on change
     if (NewState != CurrentState)
     {
         CurrentState = NewState;
@@ -142,16 +140,17 @@ void UPhysicsGrabberComponent::ToggleGrab()
 
     if (bHit && Hit.GetComponent())
     {
-        // Твои проверки
         bool bHasTag = Hit.GetComponent()->ComponentHasTag(LiftableTag) || Hit.GetActor()->ActorHasTag(LiftableTag);
 
         if (bHasTag && Hit.GetComponent()->IsSimulatingPhysics())
         {
             if (!PhysicsHandle) return;
 
+            // Calculate distance
             CurrentHoldDistance = (Hit.Location - CamLoc).Size();
             CurrentHoldDistance = FMath::Clamp(CurrentHoldDistance, MinHoldDistance, TraceDistance);
 
+            // Initialize physics state
             CurrentTargetLocation = Hit.GetComponent()->GetComponentLocation();
             CurrentTargetVelocity = FVector::ZeroVector;
             RotationOffset = Hit.GetComponent()->GetComponentRotation() - CamRot;
@@ -163,6 +162,7 @@ void UPhysicsGrabberComponent::ToggleGrab()
                 Hit.GetComponent()->GetComponentRotation()
             );
 
+            // Spawn VFX
             if (GrabVFXTemplate)
             {
                 ActiveVFX = UNiagaraFunctionLibrary::SpawnSystemAttached(
@@ -177,8 +177,7 @@ void UPhysicsGrabberComponent::ToggleGrab()
             }
 
             bIsHolding = true;
-            // Принудительно обновляем состояние, чтобы UI мгновенно отреагировал
-            UpdateTraceState();
+            UpdateTraceState(); // Immediate update
         }
     }
 }
@@ -198,13 +197,13 @@ void UPhysicsGrabberComponent::ReleaseObject()
     }
 
     bIsHolding = false;
-    // Принудительно обновляем состояние
     UpdateTraceState();
 }
 
 void UPhysicsGrabberComponent::ChangeHoldDistance(float AxisValue)
 {
     if (!bIsHolding) return;
+    // Multiplier 25.0f gives a responsive feel
     CurrentHoldDistance += AxisValue * 25.0f;
     CurrentHoldDistance = FMath::Clamp(CurrentHoldDistance, MinHoldDistance, TraceDistance);
 }

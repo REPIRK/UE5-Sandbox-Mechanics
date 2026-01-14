@@ -7,7 +7,7 @@
 ASandboxWorldManager::ASandboxWorldManager()
 {
     PrimaryActorTick.bCanEverTick = true;
-    // ОПТИМИЗАЦИЯ: Выключаем тик на старте. Включаем только при загрузке.
+    // OPTIMIZATION: Tick disabled by default. Enabled only during loading.
     PrimaryActorTick.bStartWithTickEnabled = false;
 }
 
@@ -16,17 +16,16 @@ void ASandboxWorldManager::SaveWorld()
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // 1. Получаем имя текущего уровня (для разделения сохранений по картам)
     FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(this);
 
-    // 2. Пытаемся загрузить существующий файл, чтобы НЕ стереть данные других уровней
+    // 1. Try to load existing save to preserve data from other levels
     USandboxSaveGame* SaveInst = nullptr;
     if (UGameplayStatics::DoesSaveGameExist(SaveSlotName, 0))
     {
         SaveInst = Cast<USandboxSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
     }
 
-    // Если файла нет, создаем новый
+    // Create new if invalid
     if (!SaveInst)
     {
         SaveInst = Cast<USandboxSaveGame>(UGameplayStatics::CreateSaveGameObject(USandboxSaveGame::StaticClass()));
@@ -34,20 +33,15 @@ void ASandboxWorldManager::SaveWorld()
 
     if (!SaveInst) return;
 
-    // --- ОЧИСТКА СТАРЫХ ДАННЫХ ЭТОГО УРОВНЯ ---
-    // Удаляем только записи текущего уровня. Остальные уровни остаются.
+    // --- CLEANUP ---
+    // Remove items belonging to the current level before rewriting
     SaveInst->Items.RemoveAll([&CurrentLevelName](const FSavedItemCompact& Item)
         {
             return Item.LevelName == CurrentLevelName;
         });
 
-    /*
-       УБРАНО: Сохранение позиции игрока.
-       Теперь позиция определяется PlayerStart на уровне.
-    */
-
-    // --- СБОР НОВЫХ ПРЕДМЕТОВ ---
-    // Восстанавливаем таблицу палитры
+    // --- COLLECTION ---
+    // Reconstruct palette lookup
     TMap<FString, int32> PaletteLookup;
     for (int32 i = 0; i < SaveInst->AssetPalette.Num(); i++)
     {
@@ -59,9 +53,9 @@ void ASandboxWorldManager::SaveWorld()
         AActor* Actor = *It;
         if (!IsValid(Actor)) continue;
 
+        // Only save actors with Identity component
         USandboxIdentityComponent* Identity = Actor->FindComponentByClass<USandboxIdentityComponent>();
 
-        // Сохраняем, если есть Identity и ссылка на DataAsset
         if (Identity && Identity->SourceItemData)
         {
             FString AssetPath = Identity->SourceItemData->GetPathName();
@@ -80,16 +74,11 @@ void ASandboxWorldManager::SaveWorld()
             FSavedItemCompact CompactItem;
             CompactItem.PaletteIndex = PaletteIndex;
             CompactItem.Transform = Actor->GetActorTransform();
-
-            // Записываем, какому уровню принадлежит предмет
             CompactItem.LevelName = CurrentLevelName;
 
             SaveInst->Items.Add(CompactItem);
         }
     }
-
-    // Сохраняем прогресс уровней (если он был загружен ранее, он останется)
-    // Если нужно обновить MaxUnlockedLevelIndex, это делается в BP_WinZone
 
     UGameplayStatics::SaveGameToSlot(SaveInst, SaveSlotName, 0);
 
@@ -106,16 +95,11 @@ void ASandboxWorldManager::LoadWorld()
     CachedSaveGame = Cast<USandboxSaveGame>(UGameplayStatics::LoadGameFromSlot(SaveSlotName, 0));
     if (!CachedSaveGame) return;
 
-    /*
-       УБРАНО: Загрузка позиции игрока.
-       Игрок останется на месте спавна.
-    */
-
     UWorld* World = GetWorld();
     if (!World) return;
 
-    // --- ОЧИСТКА МИРА ---
-    // Удаляем старые построенные предметы перед загрузкой
+    // --- CLEANUP SCENE ---
+    // Destroy existing constructed items
     for (TActorIterator<AActor> It(World); It; ++It)
     {
         AActor* Actor = *It;
@@ -129,7 +113,6 @@ void ASandboxWorldManager::LoadWorld()
     DataAssetCache.Empty();
     CurrentLoadIndex = 0;
 
-    // Если файл пуст, просто завершаем
     if (CachedSaveGame->Items.Num() == 0)
     {
         bIsLoading = false;
@@ -137,7 +120,7 @@ void ASandboxWorldManager::LoadWorld()
         return;
     }
 
-    // Включаем Тик для асинхронной загрузки
+    // Enable tick to start time-sliced loading
     bIsLoading = true;
     SetActorTickEnabled(true);
 
@@ -176,16 +159,15 @@ void ASandboxWorldManager::Tick(float DeltaTime)
     FActorSpawnParameters SpawnParams;
     SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-    // --- ЦИКЛ ЗАГРУЗКИ ---
+    // --- TIME-SLICED LOOP ---
     while (CurrentLoadIndex < TotalItems)
     {
-        // Лимит времени на кадр
+        // Check frame budget
         if ((FPlatformTime::Seconds() - StartTime) > MaxFrameTimeBudget)
         {
             break;
         }
 
-        // Защита от выхода за пределы массива
         if (!CachedSaveGame->Items.IsValidIndex(CurrentLoadIndex))
         {
             break;
@@ -193,7 +175,7 @@ void ASandboxWorldManager::Tick(float DeltaTime)
 
         const FSavedItemCompact& ItemData = CachedSaveGame->Items[CurrentLoadIndex];
 
-        // --- ФИЛЬТР: СПАВНИМ ТОЛЬКО ПРЕДМЕТЫ ТЕКУЩЕГО УРОВНЯ ---
+        // Filter: Spawn only items for current level
         if (ItemData.LevelName == CurrentLevelName)
         {
             int32 PIndex = ItemData.PaletteIndex;
@@ -203,7 +185,7 @@ void ASandboxWorldManager::Tick(float DeltaTime)
                 UClass* ClassToSpawn = nullptr;
                 USandboxItemData* SourceData = nullptr;
 
-                // Проверка кэша
+                // Check Cache first
                 if (UClass** FoundClass = ClassCache.Find(PIndex))
                 {
                     ClassToSpawn = *FoundClass;
@@ -215,8 +197,10 @@ void ASandboxWorldManager::Tick(float DeltaTime)
 
                     if (!AssetPath.IsEmpty())
                     {
+                        // Load Data Asset
                         SourceData = Cast<USandboxItemData>(StaticLoadObject(USandboxItemData::StaticClass(), nullptr, *AssetPath));
-                        // Проверка на валидность DataAsset и Класса
+
+                        // Resolve Soft Class Ptr
                         if (SourceData && !SourceData->ActorClassToSpawn.IsNull())
                         {
                             ClassToSpawn = SourceData->ActorClassToSpawn.LoadSynchronous();
@@ -229,7 +213,7 @@ void ASandboxWorldManager::Tick(float DeltaTime)
                     }
                 }
 
-                // Спавн
+                // Spawn
                 if (ClassToSpawn && SourceData)
                 {
                     AActor* NewActor = World->SpawnActor<AActor>(ClassToSpawn, ItemData.Transform, SpawnParams);
@@ -243,7 +227,7 @@ void ASandboxWorldManager::Tick(float DeltaTime)
                         }
 
                         Identity->SourceItemData = SourceData;
-                        Identity->CurrentHealth = 100.0f;
+                        Identity->CurrentHealth = SourceData->DefaultHealth;
                     }
                 }
             }
@@ -252,11 +236,11 @@ void ASandboxWorldManager::Tick(float DeltaTime)
         CurrentLoadIndex++;
     }
 
-    // Прогресс
+    // Report Progress
     float Percent = (TotalItems > 0) ? (float)CurrentLoadIndex / (float)TotalItems : 1.0f;
     OnLoadingProgress(Percent);
 
-    // Завершение
+    // Completion
     if (CurrentLoadIndex >= TotalItems)
     {
         bIsLoading = false;
@@ -265,7 +249,7 @@ void ASandboxWorldManager::Tick(float DeltaTime)
         DataAssetCache.Empty();
 
         OnLoadingCompleted();
-        SetActorTickEnabled(false); // Выключаем тик для оптимизации
+        SetActorTickEnabled(false);
 
         if (GEngine)
         {

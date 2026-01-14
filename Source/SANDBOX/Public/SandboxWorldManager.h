@@ -6,6 +6,10 @@
 #include "SandboxItemData.h"
 #include "SandboxWorldManager.generated.h"
 
+/**
+ * Manages async loading/saving of world state.
+ * Implements Time-Sliced processing to prevent frame drops during mass spawning.
+ */
 UCLASS()
 class SANDBOX_API ASandboxWorldManager : public AActor
 {
@@ -15,7 +19,7 @@ public:
     ASandboxWorldManager();
     virtual void Tick(float DeltaTime) override;
 
-    // Лимит времени на обработку спавна за один кадр (в секундах)
+    // Time budget per frame for spawning (seconds). Default 5ms.
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Optimization")
     double MaxFrameTimeBudget = 0.005;
 
@@ -41,7 +45,7 @@ private:
     UPROPERTY()
     TObjectPtr<USandboxSaveGame> CachedSaveGame;
 
-    // Кэши для оптимизации асинхронной загрузки
+    // Caches to optimize async loading lookup
     UPROPERTY()
     TMap<int32, UClass*> ClassCache;
 

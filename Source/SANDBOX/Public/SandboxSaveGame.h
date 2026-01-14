@@ -15,28 +15,35 @@ struct FSavedItemCompact
     UPROPERTY()
     FTransform Transform;
 
-    // НОВОЕ ПОЛЕ: К какому уровню принадлежит этот предмет
+    /** Determines which level this item belongs to. */
     UPROPERTY()
     FString LevelName;
 };
 
+/**
+ * Main SaveGame class containing player progress and world state.
+ */
 UCLASS()
 class SANDBOX_API USandboxSaveGame : public USaveGame
 {
     GENERATED_BODY()
 
 public:
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Player")
     FTransform PlayerTransform;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    /** Optimized list of asset paths to reduce file size. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World")
     TArray<FString> AssetPalette;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite)
+    /** List of all spawned items in the world. */
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "World")
     TArray<FSavedItemCompact> Items;
 
-    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SaveData")
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Progress")
     int32 MaxUnlockedLevelIndex = 0;
+
+    // --- SETTINGS ---
 
     UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Settings")
     float MusicVolume = 1.0f;

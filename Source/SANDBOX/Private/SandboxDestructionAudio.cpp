@@ -2,7 +2,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "GeometryCollection/GeometryCollectionComponent.h" 
-#include "Chaos/ChaosGameplayEventDispatcher.h" // Для типов событий
+#include "Chaos/ChaosGameplayEventDispatcher.h"
 
 USandboxDestructionAudio::USandboxDestructionAudio()
 {
@@ -26,13 +26,10 @@ void USandboxDestructionAudio::BeginPlay()
 
 void USandboxDestructionAudio::HandleBreakEvent(const FChaosBreakEvent& BreakEvent)
 {
-    // SAFETY CHECK 1: Проверяем, жив ли компонент и мир
     if (!IsValid(this) || !GetWorld()) return;
-
-    // SAFETY CHECK 2: Если звука нет, нечего делать
     if (!BreakSound) return;
 
-    // Таймер отключения (оптимизация)
+    // Timer logic to stop listening after major destruction
     if (!bIsActive)
     {
         bIsActive = true;
@@ -54,14 +51,12 @@ void USandboxDestructionAudio::HandleBreakEvent(const FChaosBreakEvent& BreakEve
         return;
     }
 
-    // Воспроизводим звук в точке удара
     UGameplayStatics::PlaySoundAtLocation(this, BreakSound, BreakEvent.Location);
     LastSoundTime = CurrentTime;
 }
 
 void USandboxDestructionAudio::ShutdownAudioLogic()
 {
-    // SAFETY CHECK 3: Проверка перед отключением
     if (!IsValid(this)) return;
 
     AActor* Owner = GetOwner();
@@ -69,7 +64,6 @@ void USandboxDestructionAudio::ShutdownAudioLogic()
 
     UGeometryCollectionComponent* GeometryCollection = Owner->FindComponentByClass<UGeometryCollectionComponent>();
 
-    // Проверяем, жив ли компонент физики
     if (GeometryCollection && GeometryCollection->IsValidLowLevel())
     {
         GeometryCollection->OnChaosBreakEvent.RemoveDynamic(this, &USandboxDestructionAudio::HandleBreakEvent);

@@ -13,6 +13,10 @@ enum class ESandboxItemCategory : uint8
     Misc            UMETA(DisplayName = "Misc")
 };
 
+/**
+ * Primary Data Asset representing a spawnable item.
+ * Uses Soft References for memory optimization.
+ */
 UCLASS(BlueprintType, Blueprintable)
 class SANDBOX_API USandboxItemData : public UPrimaryDataAsset
 {
@@ -28,15 +32,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Config")
     ESandboxItemCategory Category;
 
-    // Мягкая ссылка на класс (Blueprint), чтобы не грузить его сразу
+    /** Soft Ref to Actor Class to avoid hard loading. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Item Config")
     TSoftClassPtr<AActor> ActorClassToSpawn;
 
-    // Мягкая ссылка на меш для "Призрака"
+    /** Soft Ref to Static Mesh for ghost preview. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Visuals")
     TSoftObjectPtr<UStaticMesh> GhostMesh;
 
-    // Стандартное здоровье для новых предметов
+    /** Default Health for physics objects. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Physics Stats")
     float DefaultHealth = 500.0f;
 

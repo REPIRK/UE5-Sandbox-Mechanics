@@ -7,7 +7,7 @@
 #include "NiagaraComponent.h"
 #include "PhysicsGrabberComponent.generated.h"
 
-// 1. Enum для состояний прицела
+// Enum representing the current interaction state for the UI/Crosshair
 UENUM(BlueprintType)
 enum class EGrabState : uint8
 {
@@ -16,7 +16,7 @@ enum class EGrabState : uint8
     Holding     UMETA(DisplayName = "Holding (Closed Hand)")
 };
 
-// 2. Делегат для уведомления UI
+// Delegate to notify UI about state changes
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGrabStateChanged, EGrabState, NewState);
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
@@ -33,26 +33,29 @@ protected:
 public:
     virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
+    // --- INTERACTION API ---
+
+    /** Tries to grab an object or release it if already holding. */
     UFUNCTION(BlueprintCallable, Category = "Interaction")
     void ToggleGrab();
 
+    /** Releases the currently held object. */
     UFUNCTION(BlueprintCallable, Category = "Interaction")
     void ReleaseObject();
 
+    /** Adjusts the distance of the held object (Mouse Wheel). */
     UFUNCTION(BlueprintCallable, Category = "Interaction")
     void ChangeHoldDistance(float AxisValue);
 
-    // --- STATE FOR UI ---
+    // --- EVENTS ---
 
-    // Событие, на которое подпишется BP_FlyCam
     UPROPERTY(BlueprintAssignable, Category = "Interaction")
     FOnGrabStateChanged OnGrabStateChanged;
 
-    // Текущее состояние для чтения
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "State")
     EGrabState CurrentState;
 
-    // --- CONFIG ---
+    // --- CONFIGURATION ---
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
     float TraceDistance = 1000.0f;
@@ -60,10 +63,11 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
     float MinHoldDistance = 100.0f;
 
+    /** Objects with this tag or component tag can be lifted. */
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
     FName LiftableTag = "LiftableTag";
 
-    // --- PHYSICS SETTINGS (Твои настройки) ---
+    // --- PHYSICS SETTINGS ---
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Physics")
     float SpringStiffness = 40.0f;
@@ -84,13 +88,14 @@ private:
     bool bIsHolding;
     float CurrentHoldDistance;
 
-    // Твои переменные для пружины
+    // Physics interpolation state
     FVector CurrentTargetLocation;
     FVector CurrentTargetVelocity;
     FRotator RotationOffset;
 
-    bool GetPlayerViewPoint(FVector& OutLoc, FVector& OutDir, FRotator& OutRot) const;
-
-    // Новая функция для проверки (чтобы не писать спагетти в BP)
+    /** Updates the trace logic to determine if we can grab something. */
     void UpdateTraceState();
+
+    /** Helper to get player camera data. */
+    bool GetPlayerViewPoint(FVector& OutLoc, FVector& OutDir, FRotator& OutRot) const;
 };

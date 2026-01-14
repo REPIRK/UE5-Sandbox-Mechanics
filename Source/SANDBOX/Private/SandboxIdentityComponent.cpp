@@ -12,8 +12,7 @@ void USandboxIdentityComponent::TakeDamageFromPlayer(float Amount)
 
     CurrentHealth -= Amount;
 
-    // Если здоровье кончилось, удаляем ссылку на данные.
-    // Это сигнал для системы сохранений: "Не сохраняй этот мусор".
+    // If destroyed, nullify data to prevent saving broken objects
     if (CurrentHealth <= 0.0f)
     {
         SourceItemData = nullptr;

@@ -7,6 +7,10 @@
 
 struct FChaosBreakEvent;
 
+/**
+ * Component responsible for playing audio when Chaos Geometry Collection breaks.
+ * Optimized to prevent audio spam.
+ */
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class SANDBOX_API USandboxDestructionAudio : public UActorComponent
 {
