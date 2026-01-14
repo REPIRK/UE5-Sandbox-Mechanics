@@ -1,3 +1,6 @@
+<img width="1919" height="1079" alt="Снимок экрана 2026-01-14 150355" src="https://github.com/user-attachments/assets/c9974471-8fe1-419b-867a-1d74f351385d" />
+
+
 # 🏗️ UE5 Physics Sandbox Mechanics
 
 **Technical showcase from the game "Fractura" (Released on Steam).**
