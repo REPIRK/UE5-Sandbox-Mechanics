@@ -37,7 +37,7 @@ Performance-critical logic is implemented in C++, exposed to Blueprints for game
 ---
 
 ## 💻 Tech Stack
-*   **Engine:** Unreal Engine 5.4
+*   **Engine:** Unreal Engine 5.7
 *   **Languages:** C++, Blueprints
 *   **IDE:** Visual Studio 2022
 *   **Version Control:** Git
